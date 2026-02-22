@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Decode Counter – FTC Scouting</title>
+<title>Decode Counter – FRC Scouting</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -432,8 +432,9 @@
   <div class="id-box">
     <div class="id-title">IDENTIFICARE SESIUNE</div>
     <div class="id-subtitle">Introdu ID-ul tău de scouter pentru a continua</div>
-    <input type="text" id="session-id-input" placeholder="ID Scouter (ex: Scout_01)" style="text-transform:uppercase;" oninput="document.getElementById('start-btn').disabled = this.value.trim() === ''">
-    <button class="id-confirm-btn" id="start-btn" disabled onclick="startSession()">ÎNCEPE SESIUNEA →</button>
+    <input type="text" id="session-id-input" placeholder="ID Scouter (ex: Scout_01)" style="text-transform:uppercase;" oninput="document.getElementById('start-btn').disabled = this.value.trim() === ''; document.getElementById('auth-error').style.display='none';">
+    <div id="auth-error" style="display:none; color:#e05555; font-size:11px; letter-spacing:1px; text-align:center; padding:8px 0;">✗ ID INVALID — NU ESTI IN LISTA</div>
+    <button class="id-confirm-btn" id="start-btn" disabled onclick="startSession()">INCEPE SESIUNEA →</button>
   </div>
 </div>
 
@@ -528,24 +529,43 @@
 </div><!-- end .phone / main-app -->
 
 <script>
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyaudSNdPN0HTwuH24Qe-cVE-lWM3_LMRu6W4F25sMGqCH4UZRH8dnkzp2PBNftFy-E8Q/exec';
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwG_PPVpp1YkaW51G6koQajzWc-q_5G9QGJRBMxJ8rIzniYsvP1av83JakDg3nbgUT6Tw/exec';
 
   let sessionId = '';
 
-  // Copy logo src to id screen logo
   window.addEventListener('DOMContentLoaded', () => {
     const mainLogo = document.querySelector('.logo-img');
     if (mainLogo) document.getElementById('id-logo').src = mainLogo.src;
   });
 
-  function startSession() {
+  async function startSession() {
     const val = document.getElementById('session-id-input').value.trim().toUpperCase();
     if (!val) return;
-    sessionId = val;
-    document.getElementById('id-screen').classList.add('hidden');
-    document.getElementById('main-app').style.display = 'block';
-    // Show session ID in header badges
-    document.querySelectorAll('.session-badge span').forEach(el => el.textContent = sessionId);
+
+    const btn = document.getElementById('start-btn');
+    btn.disabled = true;
+    btn.textContent = 'SE VERIFICA...';
+
+    try {
+      const res = await fetch(SCRIPT_URL + '?action=auth&id=' + encodeURIComponent(val));
+      const text = await res.text();
+
+      if (text.trim() === 'valid') {
+        sessionId = val;
+        document.getElementById('id-screen').classList.add('hidden');
+        document.getElementById('main-app').style.display = 'block';
+        document.querySelectorAll('.session-badge span').forEach(el => el.textContent = sessionId);
+      } else {
+        document.getElementById('auth-error').style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'INCEPE SESIUNEA';
+      }
+    } catch (err) {
+      document.getElementById('auth-error').textContent = 'EROARE DE CONEXIUNE';
+      document.getElementById('auth-error').style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'INCEPE SESIUNEA';
+    }
   }
 
   function showToast(msg, type = '') {
@@ -560,6 +580,7 @@
   async function sendToSheets(data) {
     try {
       const params = new URLSearchParams({
+        action: 'log',
         id: data.id,
         ora: data.ora,
         meci: data.meci,
